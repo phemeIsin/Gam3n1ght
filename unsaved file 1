@@ -1,0 +1,340 @@
+9. Test joining from another device/browser
+
+This is important because this is supposed to be a party-game platform.
+
+Use another browser or your phone.
+
+For example:
+
+Laptop
+Create room
+Code: ABC123
+Phone
+
+Open the app and enter:
+
+ABC123
+
+Join using a different name.
+
+You should see the player appear.
+
+Because Realtime is enabled, changes should propagate between devices.
+
+10. Create your admin account
+
+This is separate from anonymous players.
+
+Go to:
+
+Supabase → Authentication → Users
+
+Create a normal email/password account.
+
+For example:
+
+Email: your-admin-email
+Password: ********
+
+Supabase will create the user.
+
+You then need the user's UUID.
+
+It will look something like:
+
+8f123456-1234-4567-8901-123456789abc
+
+Copy it.
+
+11. Put that user into admin_users
+
+Go back to:
+
+Supabase → SQL Editor → New query
+
+Run:
+
+insert into public.admin_users(user_id)
+values ('YOUR-AUTH-USER-UUID')
+on conflict do nothing;
+
+Replace:
+
+YOUR-AUTH-USER-UUID
+
+with the actual UUID.
+
+For example:
+
+insert into public.admin_users(user_id)
+values ('8f123456-1234-4567-8901-123456789abc')
+on conflict do nothing;
+
+Run it.
+
+Now that account is an admin.
+
+12. Test /admin
+
+Log into the application using the admin account.
+
+Go to:
+
+http://localhost:5173/admin
+
+You should get the Creator Studio.
+
+You mentioned these sections in your requirements:
+
+Overview
+Games
+Suggestions
+Messages
+
+The Overview should show things like:
+
+Game count
+Room activity
+Player activity
+Pending suggestions
+Open messages
+13. Test the normal-user workflows
+
+Now test /suggest.
+
+Go to:
+
+http://localhost:5173/suggest
+
+Submit a game suggestion.
+
+Then go to the admin account:
+
+/admin
+   ↓
+Suggestions
+
+You should see the submitted suggestion.
+
+Test:
+
+Approve
+Decline
+
+Do the same with:
+
+/contact
+
+Submit:
+
+Bug report
+General suggestion
+Partnership request
+Complaint
+
+Then check:
+
+/admin
+   ↓
+Messages
+14. Check the 16 seeded games
+
+Your database should contain these in this order:
+
+1. UNO Game
+2. Don't Say X
+3. Stay Different
+4. Get to 3
+5. Sketch Game
+6. Find the Number
+7. Guess the Leader
+8. Guess the Number
+9. 10 Seconds
+10. Memory Drawing
+11. First to 5
+12. Wrong Answers Only
+13. Contact
+14. Head, Shoulders, Knees & Cup
+15. Garbage
+16. Pressure
+
+Check:
+
+Supabase → Table Editor → games
+
+Make sure they're there.
+
+15. Test security
+
+This part is important because your README specifically says the old open Creator Studio policies were removed.
+
+You want to verify:
+
+Normal player
+
+Can:
+
+Read games
+Read prompts
+Create/join rooms
+Play
+Submit suggestions
+Submit contact messages
+
+Should not be able to:
+
+Edit games
+Edit prompts
+Delete games
+Upload admin assets
+Access admin functionality
+Admin
+
+Should be able to:
+
+Manage games
+Manage prompts
+Manage suggestions
+Manage contact messages
+Upload/delete permitted assets
+16. Test room expiry/limits
+
+The database has rules for:
+
+Room lifetime
+12 hours
+Maximum players
+30
+Room creation rate
+5 rooms / user / 10 minutes
+
+You don't necessarily need to manually wait 12 hours to test this. Just verify the functions/RLS were created successfully.
+
+17. Configure automatic cleanup
+
+The database has:
+
+public.cleanup_expired_rooms()
+
+The README recommends running that periodically.
+
+In Supabase, configure a scheduled job/pg_cron to execute:
+
+select public.cleanup_expired_rooms();
+
+Every 15–60 minutes is reasonable.
+
+This means:
+
+Expired room
+     ↓
+cleanup job
+     ↓
+deleted
+
+Even without the cleanup job, expired rooms are supposed to be excluded from normal reads.
+
+18. Test the PWA
+
+Once everything works:
+
+npm run build
+
+You should get:
+
+dist/
+
+If the build succeeds, that's a good sign.
+
+You can also check for TypeScript/build errors:
+
+npm run build
+
+If you get errors, fix those before deploying.
+
+19. Your final architecture
+
+Once everything is working, you'll have:
+
+                    ┌─────────────────┐
+                    │   Game Night    │
+                    │   React + Vite  │
+                    └────────┬────────┘
+                             │
+              ┌──────────────┼──────────────┐
+              ↓              ↓              ↓
+          Auth           Database       Realtime
+              │              │              │
+              ↓              ↓              ↓
+        Anonymous       Supabase DB      Live rooms
+         players          │
+                           ├── games
+                           ├── prompts
+                           ├── rooms
+                           ├── room_players
+                           ├── suggestions
+                           ├── messages
+                           └── admin_users
+The exact order I'd recommend
+
+Don't try to do everything at once. Do this:
+
+Phase 1 — Local
+cd game-night
+npm install
+npm run dev
+
+Confirm the app opens.
+
+Phase 2 — Supabase
+Create Supabase project
+Enable Anonymous Sign-Ins
+Open SQL Editor
+Paste entire supabase.sql
+Run it
+Check for SQL errors
+Phase 3 — Connect frontend
+cp .env.example .env
+
+Add:
+
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+
+Then:
+
+npm run dev
+Phase 4 — Test rooms
+Create room
+       ↓
+Get code
+       ↓
+Join from phone/second browser
+       ↓
+Start game
+       ↓
+Test scores/realtime
+Phase 5 — Admin
+Create Supabase email account
+       ↓
+Copy UUID
+       ↓
+Add UUID to admin_users
+       ↓
+Log into Game Night
+       ↓
+/admin
+Phase 6 — Community features
+
+Test:
+
+/suggest
+/contact
+/admin → Suggestions
+/admin → Messages
+Phase 7 — Production check
+npm run build
+
+If that succeeds, you're ready to move on to deployment.
+
+I would start with Steps 1–5 only. Once you've run supabase.sql, if Supabase gives you any error, paste the error here before changing anything else.
