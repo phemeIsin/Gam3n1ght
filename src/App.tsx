@@ -1,6 +1,52 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { BrowserRouter, Link, Route, Routes, useNavigate, useParams } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, ArrowRight, BarChart3, Check, CheckCircle2, ChevronDown, CircleHelp, CircleX, Clipboard, Clock3, Copy, Crown, Download, DoorOpen, ExternalLink, Flame, Gamepad2, Handshake, Hash, Inbox, Info, Lightbulb, LogIn, Menu, MessageCircle, MessageSquareText, Pause, Play, Plus, RotateCcw, Search, Send, Settings2, Share2, Sparkles, ThumbsDown, ThumbsUp, Timer, Trophy, Users, Wifi, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  ArrowRight,
+  BarChart3,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  CircleHelp,
+  CircleX,
+  Clipboard,
+  Clock3,
+  Copy,
+  Crown,
+  Download,
+  DoorOpen,
+  ExternalLink,
+  Flame,
+  Gamepad2,
+  Handshake,
+  Hash,
+  Inbox,
+  Info,
+  Lightbulb,
+  LogIn,
+  Menu,
+  MessageCircle,
+  MessageSquareText,
+  Moon,
+  Pause,
+  Play,
+  Plus,
+  RotateCcw,
+  Search,
+  Send,
+  Settings2,
+  Share2,
+  Sparkles,
+  Sun,
+  ThumbsDown,
+  ThumbsUp,
+  Timer,
+  Trophy,
+  Users,
+  Wifi,
+  X
+}from 'lucide-react'
 import type { Game, GameKind, Player, Prompt, RoomSnapshot } from './types'
 import { defaultPrompts } from './games/catalog'
 import { loadGames, loadPrompts, saveGame, savePrompt, uploadAnimation } from './lib/content'
@@ -15,13 +61,105 @@ import { Scoreboard } from './components/Scoreboard'
 import './styles.css'
 
 function AppShell({children,onInstall}:{children:ReactNode;onInstall?:()=>void}) {
-  const [installAvailable,setInstallAvailable]=useState(false)
-  useEffect(()=>{
-    const handler=(e:Event)=>{e.preventDefault();(window as any).__pwaPrompt=e;setInstallAvailable(true)}
-    window.addEventListener('beforeinstallprompt',handler);return()=>window.removeEventListener('beforeinstallprompt',handler)
+  const [installAvailable,setInstallAvailable] = useState(false)
+  const [darkMode,setDarkMode] = useState(() => {
+    return localStorage.getItem('game-night-theme') === 'dark'
+  })
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault()
+      ;(window as any).__pwaPrompt = e
+      setInstallAvailable(true)
+    }
+
+    window.addEventListener('beforeinstallprompt',handler)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt',handler)
+    }
   },[])
-  const install=async()=>{const p=(window as any).__pwaPrompt;if(!p)return;await p.prompt();setInstallAvailable(false)}
-  return <div className="app-shell"><header className="topbar"><Link className="brand" to="/"><span className="brand-mark"><Gamepad2 size={18}/></span><span>Game Night</span></Link><nav><a href="/#games">Games</a><a href="/#how">How it works</a><Link to="/suggest">Suggest a game</Link><Link to="/contact">Contact</Link><Link to="/admin">Creator Studio</Link>{installAvailable?<button className="install-link" onClick={install}><Download size={15}/> Install</button>:null}</nav><div className="status-pill"><span className={isSupabaseConfigured?'live':'demo'}/>{isSupabaseConfigured?'Live rooms':'Demo mode'}</div></header>{children}</div>
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark',darkMode)
+    localStorage.setItem(
+      'game-night-theme',
+      darkMode ? 'dark' : 'light'
+    )
+  },[darkMode])
+
+  const install = async () => {
+    const p = (window as any).__pwaPrompt
+    if (!p) return
+
+    await p.prompt()
+    setInstallAvailable(false)
+  }
+
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <Link className="brand" to="/">
+          <span className="brand-mark">
+            <Gamepad2 size={18}/>
+          </span>
+          <span>Game Night</span>
+        </Link>
+
+        <nav>
+          <a href="/#games">Games</a>
+          <a href="/#how">How it works</a>
+          <Link to="/suggest">Suggest a game</Link>
+          <Link to="/contact">Contact</Link>
+          <Link to="/admin">Creator Studio</Link>
+
+          {installAvailable ? (
+            <button
+              className="install-link"
+              onClick={install}
+            >
+              <Download size={15}/>
+              Install
+            </button>
+          ) : null}
+
+          <button
+            className="theme-toggle"
+            onClick={() => setDarkMode(v => !v)}
+            aria-label={
+              darkMode
+                ? 'Switch to light mode'
+                : 'Switch to dark mode'
+            }
+            title={
+              darkMode
+                ? 'Switch to light mode'
+                : 'Switch to dark mode'
+            }
+          >
+            {darkMode ? (
+              <>
+                <Sun size={15}/>
+                Light
+              </>
+            ) : (
+              <>
+                <Moon size={15}/>
+                Dark
+              </>
+            )}
+          </button>
+        </nav>
+
+        <div className="status-pill">
+          <span className={isSupabaseConfigured ? 'live' : 'demo'}/>
+          {isSupabaseConfigured ? 'Live rooms' : 'Demo mode'}
+        </div>
+      </header>
+
+      {children}
+    </div>
+  )
 }
 
 function useGameCatalog(){
