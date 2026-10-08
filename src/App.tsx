@@ -609,8 +609,7 @@ function Home() {
           <div className="eyebrow">GAM3N1GHT X DiSCoVaR</div>
           <h2>Don’t just hear about the next gamenight/event. Be in the room!!!.</h2>
           <p>
-            Join our community for game updates, new custom games, event announcements and game ideas.
-            Have a game you love? Suggest it below to see it added to the library!
+Join our WhatsApp community for Game Night updates, new games, event announcements and deals from DisCoVar - a community built around discovering what’s happening and where the good deals are.
           </p>
           <div className="community-promo-actions">
             <a
@@ -619,7 +618,7 @@ function Home() {
               target="_blank"
               rel="noreferrer"
             >
-              <MessageCircle size={16} /> Join the Community
+              <MessageCircle size={16} /> Join the WA-Community
             </a>
             <Link className="button ghost" to="/suggest" onClick={() => sound.playTap()}>
               <Lightbulb size={16} /> Suggest a Game
