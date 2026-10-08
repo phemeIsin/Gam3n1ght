@@ -1,4 +1,5 @@
 import type { Game, GameKind } from '../types'
+import { defaultGames } from '../games/catalog'
 import { ensureGuestSession, supabase } from './supabase'
 
 type SuggestionInput = {
@@ -141,7 +142,7 @@ export async function getAdminUsage(): Promise<AdminUsage> {
     const suggestions = localRead<GameSuggestion>(suggestionKey)
     const contacts = localRead<ContactMessage>(contactKey)
     return {
-      totalGames: 16,
+      totalGames: defaultGames.length,
       pendingSuggestions: suggestions.filter(s => s.status === 'pending').length,
       totalSuggestions: suggestions.length,
       openMessages: contacts.filter(c => c.status === 'open').length,

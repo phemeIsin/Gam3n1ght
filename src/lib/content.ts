@@ -7,12 +7,18 @@ export async function loadGames(): Promise<Game[]> {
   if (!supabase) return mergeGames(defaultGames, loadCustomGames())
   const { data, error } = await supabase.from('games').select('*').order('sort_order')
   if (error || !data?.length) return mergeGames(defaultGames, loadCustomGames())
-  return data.map((r:any)=>({
-    id:r.id, slug:r.slug, behavior:r.game_kind ?? r.slug, name:r.name, shortDescription:r.short_description, description:r.description,
-    instructions:r.instructions ?? [], exampleUrl:r.example_url ?? undefined, scoreMode:r.score_mode ?? 'points',
-    targetScore:r.target_score ?? undefined, minPlayers:r.min_players ?? 2, supportsTeams:r.supports_teams ?? false,
-    animationKey:r.animation_key ?? 'default', tags:r.tags ?? []
-  }))
+  const defaultById = new Map(defaultGames.map(g => [g.id, g]))
+  const dbGames = data.map((r:any) => {
+    const fallback = defaultById.get(r.id)
+    return {
+      id:r.id, slug:r.slug, behavior:r.game_kind ?? r.slug, name:r.name, shortDescription:r.short_description, description:r.description,
+      instructions:r.instructions ?? [], exampleUrl:r.example_url ?? undefined, scoreMode:r.score_mode ?? 'points',
+      targetScore:r.target_score ?? undefined, minPlayers:r.min_players ?? 2, supportsTeams:r.supports_teams ?? false,
+      animationKey:r.animation_key ?? 'default', tags:r.tags ?? [], isSoloFriendly:r.is_solo_friendly ?? fallback?.isSoloFriendly ?? false,
+      playMode:r.play_mode ?? 'physical', externalProvider:r.external_provider ?? undefined, externalLaunchUrl:r.external_launch_url ?? undefined, externalGameUrl:r.external_game_url ?? undefined
+    }
+  })
+  return mergeGames(defaultGames, dbGames)
 }
 
 export async function loadPrompts(gameId:string): Promise<Prompt[]> {
@@ -24,7 +30,7 @@ export async function loadPrompts(gameId:string): Promise<Prompt[]> {
 
 export async function saveGame(game:Game) {
   if (!supabase) { const customs=loadCustomGames(); saveCustomGames([...customs.filter(g=>g.id!==game.id),game]); return game }
-  const row={id:game.id,slug:game.slug,game_kind:game.behavior ?? game.slug,name:game.name,short_description:game.shortDescription,description:game.description,instructions:game.instructions,example_url:game.exampleUrl ?? null,score_mode:game.scoreMode,target_score:game.targetScore ?? null,min_players:game.minPlayers ?? 2,supports_teams:game.supportsTeams ?? false,animation_key:game.animationKey,tags:game.tags,sort_order:999}
+  const row={id:game.id,slug:game.slug,game_kind:game.behavior ?? game.slug,name:game.name,short_description:game.shortDescription,description:game.description,instructions:game.instructions,example_url:game.exampleUrl ?? null,score_mode:game.scoreMode,target_score:game.targetScore ?? null,min_players:game.minPlayers ?? 2,supports_teams:game.supportsTeams ?? false,animation_key:game.animationKey,tags:game.tags,is_solo_friendly:game.isSoloFriendly ?? false,play_mode:game.playMode ?? 'physical',external_provider:game.externalProvider ?? null,external_launch_url:game.externalLaunchUrl ?? null,external_game_url:game.externalGameUrl ?? null,sort_order:999}
   const { data, error } = await supabase.from('games').upsert(row).select().single(); if(error) throw error; return data
 }
 

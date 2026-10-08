@@ -35,6 +35,7 @@ export function GameCard({ game, onOpen, onQuickPlay }: GameCardProps) {
         <p>{game.shortDescription}</p>
 
         <div className="tags">
+          {game.playMode === 'online' ? <span style={{ color: 'var(--lime)' }}>#online</span> : null}
           {game.tags.slice(0, 3).map(t => (
             <span key={t}>#{t}</span>
           ))}

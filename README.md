@@ -155,3 +155,30 @@ Creator Studio now has tabs for Overview, Games, Suggestions and Messages. The O
 Run the full `supabase.sql` in **Supabase Dashboard → SQL Editor → New query**. Do not run `supabase.sql` as a shell command.
 
 The SQL adds `game_suggestions`, `contact_messages` and `games.game_kind`, with RLS policies for authenticated submissions and admin-only reads/updates.
+
+## Recent upgrade: live rooms + online games
+
+The latest build adds:
+
+- A **Live Rooms** directory that shows only active rooms, grouped into **Online** and **Physical**.
+- Clickable active-room rows with room code, player count and waiting/playing state.
+- A working host **End Room** action that closes the room and removes it from the active-room directory.
+- Online game lobbies with room chat and an external-game invite link.
+- Bundled online games: **Skribbl.io, Gartic Phone, Codenames Online, Jigsaw Explorer, PlayingCards.io, and Board Game Arena**.
+- Mobile navigation, touch-friendly controls, responsive room layouts, mobile-friendly modals and safe-area support.
+- Creator Studio fields for adding online games and their external launch URL.
+
+### Supabase update
+
+Run the updated `supabase.sql` in the Supabase SQL Editor. It adds the online-game metadata, active room directory fields, room chat table/policies, realtime publication support, and seeds the six bundled online games for existing databases.
+
+### Online game flow
+
+Game Night creates the meetup room and provides the **chat + active room directory**. The actual online game is hosted by the selected third-party service. The host opens the provider, creates the external room, pastes the invite URL into Game Night, and everyone can then launch the same game room from the Game Night lobby.
+
+### Current game catalog
+The bundled catalog contains 36 games: 16 physical room games and 20 online multiplayer options. Only the `10 Seconds` game is marked `Solo Ready` because the other bundled games require another player, a physical group, or an external multiplayer service.
+
+### Existing Supabase projects
+Run the included `supabase.sql` against an existing v2 database as the complete upgrade. It drops the old RPC signatures before recreating them, adds the `is_solo_friendly` metadata column, updates the room directory rules, and seeds the expanded online catalog.
+

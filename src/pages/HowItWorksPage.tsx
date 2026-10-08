@@ -117,7 +117,7 @@ export function HowItWorksPage() {
             timers, prompts, synchronized rounds, and zero-math scoring.
           </p>
         </div>
-        <Link className="button ghost" to="/" onClick={() => sound.playTap()}>
+        <Link className="button ghost" to="/games" onClick={() => sound.playTap()}>
           <ArrowLeft size={16} /> Back to Games
         </Link>
       </header>
@@ -205,7 +205,7 @@ export function HowItWorksPage() {
         <p>Pick a game, create your table, and share your room code with your crew.</p>
         <div className="how-cta-actions">
           <Link
-            to="/#games"
+            to="/games"
             className="button primary big gnc-game-press"
             onClick={() => sound.playTap()}
           >

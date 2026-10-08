@@ -49,7 +49,7 @@ import {
   Wifi,
   X
 } from 'lucide-react'
-import type { Game, GameKind, Player, Prompt, RoomSnapshot } from './types'
+import type { ActiveRoomSummary, ChatMessage, Game, GameKind, Player, Prompt, RoomSnapshot } from './types'
 import { defaultGames, defaultPrompts } from './games/catalog'
 import { loadGames, loadPrompts, saveGame, savePrompt, uploadAnimation } from './lib/content'
 import {
@@ -64,7 +64,7 @@ import {
   type ContactMessage,
   type GameSuggestion
 } from './lib/community'
-import { changeScore, createRoom, getRoom, joinRoom, subscribeToRoom, updateRoomState } from './lib/rooms'
+import { changeScore, createRoom, endRoom, getRoom, joinRoom, listActiveRooms, listRoomChat, sendRoomChat, setExternalRoomUrl, subscribeToActiveRooms, subscribeToRoom, subscribeToRoomChat, updateRoomState } from './lib/rooms'
 import { DEFAULT_AVATARS, getPlayer, makePlayer, savePlayer } from './lib/storage'
 import { getAuthSession, isCurrentUserAdmin, isSupabaseConfigured, signInWithPassword, signOut } from './lib/supabase'
 import { sound } from './lib/sound'
@@ -74,6 +74,7 @@ import { GameIllustration } from './components/GameIllustration'
 import { Scoreboard } from './components/Scoreboard'
 import { HeroBackground } from './components/HeroBackground'
 import { ReactionOverlay } from './components/ReactionOverlay'
+import { HowItWorksPage } from './pages/HowItWorksPage'
 import './styles.css'
 
 function AppShell({ children }: { children: ReactNode }) {
@@ -84,6 +85,7 @@ function AppShell({ children }: { children: ReactNode }) {
   })
   const [soundOn, setSoundOn] = useState(() => sound.isEnabled())
   const [navJoinCode, setNavJoinCode] = useState('')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -136,8 +138,9 @@ function AppShell({ children }: { children: ReactNode }) {
         </Link>
 
         <nav className="topbar-nav">
-          <a href="/#games" onClick={() => sound.playTap()}>Games</a>
-          <a href="/#how" onClick={() => sound.playTap()}>How it works</a>
+          <Link to="/games" onClick={() => sound.playTap()}>Games</Link>
+          <Link to="/how-it-works" onClick={() => sound.playTap()}>How it works</Link>
+          <Link to="/rooms" onClick={() => sound.playTap()}>Live Rooms</Link>
           <Link to="/suggest" onClick={() => sound.playTap()}>Suggest a game</Link>
           <Link to="/contact" onClick={() => sound.playTap()}>Contact</Link>
           <Link to="/admin" onClick={() => sound.playTap()}>Creator Studio</Link>
@@ -183,6 +186,16 @@ function AppShell({ children }: { children: ReactNode }) {
             {darkMode ? <Sun size={17} /> : <Moon size={17} />}
           </button>
 
+          <button
+            type="button"
+            className="action-icon-btn mobile-menu-toggle"
+            onClick={() => { sound.playTap(); setMobileMenuOpen(v => !v) }}
+            aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            title={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+          >
+            {mobileMenuOpen ? <X size={17} /> : <Menu size={17} />}
+          </button>
+
           {/* PWA Install */}
           {installAvailable ? (
             <button
@@ -203,38 +216,41 @@ function AppShell({ children }: { children: ReactNode }) {
         </div>
       </header>
 
+      {mobileMenuOpen ? (
+        <div className="mobile-menu-panel">
+          <Link to="/games" onClick={() => { sound.playTap(); setMobileMenuOpen(false) }}>Games</Link>
+          <Link to="/rooms" onClick={() => { sound.playTap(); setMobileMenuOpen(false) }}>Live Rooms</Link>
+          <Link to="/how-it-works" onClick={() => { sound.playTap(); setMobileMenuOpen(false) }}>How it works</Link>
+          <Link to="/suggest" onClick={() => { sound.playTap(); setMobileMenuOpen(false) }}>Suggest a game</Link>
+          <Link to="/contact" onClick={() => { sound.playTap(); setMobileMenuOpen(false) }}>Contact</Link>
+          <Link to="/admin" onClick={() => { sound.playTap(); setMobileMenuOpen(false) }}>Creator Studio</Link>
+        </div>
+      ) : null}
+
       {children}
 
       {/* PWA Mobile Bottom Navigation */}
       <nav className="mobile-bottom-nav" aria-label="Mobile Navigation">
         <Link to="/" className="mobile-nav-item active" onClick={() => sound.playTap()}>
-          <Gamepad2 size={20} />
-          <span>Games</span>
+          <Gamepad2 size={19} /><span>Games</span>
         </Link>
-        <button
-          type="button"
-          className="mobile-nav-item"
-          onClick={() => {
-            sound.playTap()
-            const input = document.querySelector('.join-room-expand input') as HTMLInputElement | null
-            if (input) {
-              input.focus()
-              input.scrollIntoView({ behavior: 'smooth' })
-            } else {
-              window.scrollTo({ top: 0, behavior: 'smooth' })
-            }
-          }}
-        >
-          <DoorOpen size={20} />
-          <span>Join</span>
+        <Link to="/rooms" className="mobile-nav-item" onClick={() => sound.playTap()}>
+          <Wifi size={19} /><span>Live</span>
+        </Link>
+        <button type="button" className="mobile-nav-item" onClick={() => {
+          sound.playTap(); navigate('/?join=1')
+          window.setTimeout(() => {
+            document.querySelector<HTMLInputElement>('.join-room-expand input')?.focus()
+            document.querySelector<HTMLElement>('.join-room-expand')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }, 80)
+        }}>
+          <DoorOpen size={19} /><span>Join</span>
         </button>
         <button type="button" className="mobile-nav-item" onClick={toggleSound}>
-          {soundOn ? <Volume2 size={20} /> : <VolumeX size={20} />}
-          <span>{soundOn ? 'Audio On' : 'Muted'}</span>
+          {soundOn ? <Volume2 size={19} /> : <VolumeX size={19} />}<span>Audio</span>
         </button>
         <button type="button" className="mobile-nav-item" onClick={() => { sound.playTap(); setDarkMode(v => !v) }}>
-          {darkMode ? <Sun size={20} /> : <Moon size={20} />}
-          <span>Theme</span>
+          {darkMode ? <Sun size={19} /> : <Moon size={19} />}<span>Theme</span>
         </button>
       </nav>
     </div>
@@ -264,38 +280,15 @@ function useGameCatalog() {
 function Home() {
   const nav = useNavigate()
   const [searchParams] = useSearchParams()
-  const { games, loading } = useGameCatalog()
+  const { games } = useGameCatalog()
   const storedPlayer = getPlayer()
   const [name, setName] = useState(storedPlayer?.name ?? '')
   const [avatar, setAvatar] = useState(storedPlayer?.avatar ?? DEFAULT_AVATARS[0])
   const [avatarModalOpen, setAvatarModalOpen] = useState(false)
   const [joinCode, setJoinCode] = useState(searchParams.get('join') ?? searchParams.get('room') ?? '')
   const [joinOpen, setJoinOpen] = useState(Boolean(searchParams.get('join') || searchParams.get('room')))
-  const [selected, setSelected] = useState<Game | null>(null)
-  const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState('All')
   const [error, setError] = useState('')
   const [creating, setCreating] = useState(false)
-
-  const filters = ['All', 'Solo Ready', 'Reaction', 'Drawing', 'Cards & Numbers', 'Social']
-
-  const visible = useMemo(() => {
-    return games.filter(g => {
-      const matchesCategory =
-        filter === 'All' ||
-        (filter === 'Solo Ready' && g.isSoloFriendly) ||
-        (filter === 'Reaction' && g.tags.some(t => t.toLowerCase().includes('reaction') || t.toLowerCase().includes('timing'))) ||
-        (filter === 'Drawing' && g.tags.some(t => t.toLowerCase().includes('drawing') || t.toLowerCase().includes('creative'))) ||
-        (filter === 'Cards & Numbers' && g.tags.some(t => t.toLowerCase().includes('card') || t.toLowerCase().includes('number') || t.toLowerCase().includes('counting'))) ||
-        (filter === 'Social' && g.tags.some(t => t.toLowerCase().includes('social') || t.toLowerCase().includes('party') || t.toLowerCase().includes('group')))
-
-      const matchesQuery =
-        !query ||
-        `${g.name} ${g.shortDescription} ${g.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())
-
-      return matchesCategory && matchesQuery
-    })
-  }, [games, filter, query])
 
   function ensurePlayer(): Player | null {
     let finalName = name.trim()
@@ -326,7 +319,6 @@ function Home() {
         await updateRoomState({ room, players: [p] }, { soloMode: true }, 'playing')
       }
       sound.playJoin()
-      setSelected(null)
       nav(`/room/${room.code}`)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not create room')
@@ -436,6 +428,9 @@ function Home() {
                 <DoorOpen size={18} />
                 <span>Join a Room</span>
               </button>
+              <Link className="button ghost big gnc-game-press" to="/rooms" onClick={() => sound.playTap()}>
+                <Wifi size={18} /> <span>Live Rooms</span>
+              </Link>
             </div>
 
             {joinOpen ? (
@@ -466,134 +461,14 @@ function Home() {
             ) : null}
           </div>
 
-          {/* "Or jump straight into a game" Quick Games Shelf */}
-          <div className="hero-quick-row-container">
-            <div className="hero-quick-label">Or jump straight into a game</div>
-            <div className="hero-quick-games-shelf">
-              {games.slice(0, 8).map(game => (
-                <div
-                  key={`shelf-${game.id}`}
-                  className="shelf-card"
-                  onClick={() => {
-                    sound.playTap()
-                    setSelected(game)
-                  }}
-                  title={game.name}
-                >
-                  <div className="shelf-card-art">
-                    <GameIllustration game={game} />
-                  </div>
-                  <div className="shelf-card-gradient" />
-                  {game.isSoloFriendly ? (
-                    <span className="shelf-card-badge">Solo</span>
-                  ) : (
-                    <span className="shelf-card-badge" style={{ background: '#8b5cf6', color: '#fff' }}>Party</span>
-                  )}
-                  <span className="shelf-card-title">{game.name}</span>
-                </div>
-              ))}
+          <div className="hero-games-cta">
+            <div>
+              <div className="hero-quick-label">Ready to pick a game?</div>
+              <p>Browse the full library, filter by play style, and launch a room from the dedicated Games page.</p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================
-          GAMES LIBRARY
-          ========================================================= */}
-      <section className="section games-section" id="games">
-        <div className="section-head">
-          <div>
-            <div className="eyebrow">GAME LIBRARY</div>
-            <h2>Pick your party game.</h2>
-          </div>
-          <span className="count">{games.length} games available</span>
-        </div>
-
-        <div className="library-toolbar">
-          <div className="search-box">
-            <Search size={17} />
-            <input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder="Search party games, tags, rules…"
-            />
-            {query ? (
-              <button
-                type="button"
-                onClick={() => setQuery('')}
-                style={{ border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer' }}
-              >
-                <X size={15} />
-              </button>
-            ) : null}
-          </div>
-
-          <div className="chips">
-            {filters.map(f => (
-              <button
-                key={f}
-                className={filter === f ? 'active' : ''}
-                onClick={() => { sound.playTap(); setFilter(f) }}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="loading-grid">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div className="skeleton" key={i} />
-            ))}
-          </div>
-        ) : visible.length ? (
-          <div className="game-grid">
-            {visible.map(g => (
-              <GameCard
-                key={g.id}
-                game={g}
-                onOpen={() => setSelected(g)}
-                onQuickPlay={() => void create(g)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <Search size={24} />
-            <strong>No games match your search.</strong>
-            <p>Try a different keyword or reset categories.</p>
-          </div>
-        )}
-      </section>
-
-      {/* =========================================================
-          HOW IT WORKS
-          ========================================================= */}
-      <section className="how" id="how">
-        <div>
-          <div className="eyebrow">HOW IT WORKS</div>
-          <h2>A phone screen for the stuff your group used to track on paper.</h2>
-          <p>
-            Keep the physical game physical. Use Gam3n1ght for the parts phones are best at:
-            rules, prompts, timers, room synchronization and real-time scores.
-          </p>
-        </div>
-        <div className="steps">
-          <div>
-            <b>01</b>
-            <h3>Create a Room</h3>
-            <p>Enter your nickname, pick any game and get a shareable room code in seconds.</p>
-          </div>
-          <div>
-            <b>02</b>
-            <h3>Invite Friends</h3>
-            <p>Share the link or code. Everyone joins instantly from their mobile browser without installs.</p>
-          </div>
-          <div>
-            <b>03</b>
-            <h3>Play Together</h3>
-            <p>The host advances rounds while the app synchronizes prompt decks, buzzers and scoreboards.</p>
+            <Link className="button secondary big gnc-game-press" to="/games" onClick={() => sound.playTap()}>
+              <Gamepad2 size={18} /> Browse All Games <ArrowRight size={16} />
+            </Link>
           </div>
         </div>
       </section>
@@ -630,18 +505,6 @@ Join our WhatsApp community for Game Night updates, new games, event announcemen
         </div>
       </section>
 
-      {/* Game Details & Launch Modal */}
-      {selected ? (
-        <GameModal
-          game={selected}
-          onClose={() => setSelected(null)}
-          onCreate={() => void create(selected)}
-          onSolo={() => void create(selected, true)}
-          creating={creating}
-          error={error}
-        />
-      ) : null}
-
       {/* Avatar Picker Modal */}
       {avatarModalOpen ? (
         <AvatarModal
@@ -655,6 +518,119 @@ Join our WhatsApp community for Game Night updates, new games, event announcemen
           }}
           onClose={() => setAvatarModalOpen(false)}
         />
+      ) : null}
+    </div>
+  )
+}
+
+function GamesPage() {
+  const nav = useNavigate()
+  const { games, loading } = useGameCatalog()
+  const storedPlayer = getPlayer()
+  const [name, setName] = useState(storedPlayer?.name ?? '')
+  const [avatar, setAvatar] = useState(storedPlayer?.avatar ?? DEFAULT_AVATARS[0])
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false)
+  const [selected, setSelected] = useState<Game | null>(null)
+  const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState('All')
+  const [error, setError] = useState('')
+  const [creating, setCreating] = useState(false)
+
+  const filters = ['All', 'Solo Ready', 'Online', 'Physical', 'Reaction', 'Drawing', 'Cards & Numbers', 'Social']
+
+  const visible = useMemo(() => games.filter(g => {
+    const matchesCategory =
+      filter === 'All' ||
+      (filter === 'Solo Ready' && g.isSoloFriendly === true) ||
+      (filter === 'Online' && g.playMode === 'online') ||
+      (filter === 'Physical' && g.playMode !== 'online') ||
+      (filter === 'Reaction' && g.tags.some(t => t.toLowerCase().includes('reaction') || t.toLowerCase().includes('timing'))) ||
+      (filter === 'Drawing' && g.tags.some(t => t.toLowerCase().includes('drawing') || t.toLowerCase().includes('creative'))) ||
+      (filter === 'Cards & Numbers' && g.tags.some(t => t.toLowerCase().includes('card') || t.toLowerCase().includes('number') || t.toLowerCase().includes('counting'))) ||
+      (filter === 'Social' && g.tags.some(t => t.toLowerCase().includes('social') || t.toLowerCase().includes('party') || t.toLowerCase().includes('group')))
+    const matchesQuery = !query || `${g.name} ${g.shortDescription} ${g.tags.join(' ')}`.toLowerCase().includes(query.toLowerCase())
+    return matchesCategory && matchesQuery
+  }), [games, filter, query])
+
+  function ensurePlayer(): Player {
+    const finalName = name.trim() || `Player-${['Koala', 'Fox', 'Tiger', 'Otter', 'Panda', 'Falcon', 'Cheetah'][Math.floor(Math.random() * 7)]}`
+    setName(finalName)
+    const current = getPlayer()
+    const player = current ? { ...current, name: finalName, avatar } : makePlayer(finalName, avatar)
+    savePlayer(player)
+    return player
+  }
+
+  async function create(game: Game, solo = false) {
+    setError('')
+    const player = ensurePlayer()
+    setCreating(true)
+    sound.playTap()
+    try {
+      const { room } = await createRoom(game, player)
+      if (solo) await updateRoomState({ room, players: [player] }, { soloMode: true }, 'playing')
+      sound.playJoin()
+      setSelected(null)
+      nav(`/room/${room.code}`)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Could not create room')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  return (
+    <div className="plain-page games-page">
+      <header className="page-header">
+        <div>
+          <div className="hero-pill-badge" style={{ marginBottom: '14px' }}><Gamepad2 size={14} /> THE GAME LIBRARY</div>
+          <h1>Pick your game.</h1>
+          <p>Browse the full Gam3n1ght library, filter by play style, then create a room when your crew is ready.</p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <Link className="button ghost" to="/" onClick={() => sound.playTap()}><ArrowLeft size={16} /> Home</Link>
+          <Link className="button secondary" to="/how-it-works" onClick={() => sound.playTap()}><CircleHelp size={16} /> How it works</Link>
+        </div>
+      </header>
+
+      <section className="games-page-controls theme-dark-surface">
+        <div className="player-name-row">
+          <button type="button" className="avatar-select-btn" onClick={() => { sound.playTap(); setAvatarModalOpen(true) }} title="Choose your avatar emoji" aria-label="Choose avatar">{avatar}</button>
+          <input className="name-input-field" value={name} onChange={e => setName(e.target.value)} placeholder="Enter your nickname" maxLength={20} />
+        </div>
+        <div className="games-page-stat"><strong>{games.length}</strong><span>games available</span></div>
+        <div className="games-page-stat"><strong>{games.filter(g => g.playMode === 'online').length}</strong><span>online options</span></div>
+      </section>
+
+      <div className="library-toolbar">
+        <div className="search-box">
+          <Search size={17} />
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Search games, tags, rules…" />
+          {query ? <button type="button" onClick={() => setQuery('')} style={{ border: 'none', background: 'transparent', color: 'inherit', cursor: 'pointer' }}><X size={15} /></button> : null}
+        </div>
+        <div className="chips">
+          {filters.map(f => <button key={f} className={filter === f ? 'active' : ''} onClick={() => { sound.playTap(); setFilter(f) }}>{f}</button>)}
+        </div>
+      </div>
+
+      {error ? <div className="error"><CircleHelp size={15} />{error}</div> : null}
+
+      {loading ? (
+        <div className="loading-grid">{Array.from({ length: 8 }).map((_, i) => <div className="skeleton" key={i} />)}</div>
+      ) : visible.length ? (
+        <div className="game-grid">
+          {visible.map(game => <GameCard key={game.id} game={game} onOpen={() => setSelected(game)} onQuickPlay={() => void create(game)} />)}
+        </div>
+      ) : (
+        <div className="empty-state"><Search size={24} /><strong>No games match your search.</strong><p>Try a different keyword or reset the filters.</p></div>
+      )}
+
+      {selected ? (
+        <GameModal game={selected} onClose={() => setSelected(null)} onCreate={() => void create(selected)} onSolo={() => void create(selected, true)} creating={creating} error={error} />
+      ) : null}
+
+      {avatarModalOpen ? (
+        <AvatarModal currentAvatar={avatar} onSelect={av => { sound.playTap(); setAvatar(av); const p = getPlayer(); if (p) savePlayer({ ...p, avatar: av }); setAvatarModalOpen(false) }} onClose={() => setAvatarModalOpen(false)} />
       ) : null}
     </div>
   )
@@ -723,6 +699,9 @@ function GameModal({
             <p>{game.description}</p>
           </div>
         </div>
+        {game.playMode === 'online' ? (
+          <div className="online-game-note"><Wifi size={16} /><span>This game runs on <strong>{game.externalProvider ?? 'an external game site'}</strong>. Game Night adds the lobby, active-room directory and chat.</span></div>
+        ) : null}
         <div className="rule-grid">
           <div>
             <strong>How to play</strong>
@@ -782,7 +761,7 @@ function GameModal({
               </>
             ) : (
               <>
-                <Users size={16} /> Create Room ({game.minPlayers ?? 2}+ Players)
+                <Users size={16} /> {game.playMode === 'online' ? 'Create Online Lobby' : `Create Room (${game.minPlayers ?? 2}+ Players)`}
               </>
             )}
           </button>
@@ -805,16 +784,24 @@ function RoomPage() {
   const [prompts, setPrompts] = useState<Prompt[]>([])
   const [timer, setTimer] = useState<number | null>(null)
   const [changeGameOpen, setChangeGameOpen] = useState(false)
+  const [chat, setChat] = useState<ChatMessage[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [externalInput, setExternalInput] = useState('')
+  const [chatError, setChatError] = useState('')
+  const [endRoomBusy, setEndRoomBusy] = useState(false)
   const player = getPlayer()
 
   useEffect(() => {
     let off = () => {}
+    let offChat = () => {}
 
     ;(async () => {
       try {
         const s = await getRoom(code)
         setSnapshot(s)
+        setExternalInput(s.room.externalRoomUrl ?? '')
         setLoading(false)
+        if (s.room.roomType === 'online') { try { setChat(await listRoomChat(s.room)) } catch (chatLoadError) { console.warn('ROOM CHAT LOAD ERROR:', chatLoadError) } }
 
         try {
           off = subscribeToRoom(s.room, async () => {
@@ -825,12 +812,21 @@ function RoomPage() {
                 sound.playJoin()
               }
               setSnapshot(refreshed)
+              if (refreshed.room.roomType === 'online') {
+                setExternalInput(refreshed.room.externalRoomUrl ?? '')
+                try { setChat(await listRoomChat(refreshed.room)) } catch { /* keep chat */ }
+              }
             } catch (e) {
               console.error('REALTIME GET ROOM ERROR:', e)
             }
           })
         } catch (e) {
           console.error('REALTIME SUBSCRIBE ERROR:', e)
+        }
+        if (s.room.roomType === 'online') {
+          offChat = subscribeToRoomChat(s.room, async () => {
+            try { setChat(await listRoomChat(s.room)) } catch { /* keep chat */ }
+          })
         }
       } catch (e) {
         console.error('INITIAL GET ROOM ERROR:', e)
@@ -839,7 +835,7 @@ function RoomPage() {
       }
     })()
 
-    return () => off()
+    return () => { off(); offChat() }
   }, [code])
 
   // Support game switching: use snapshot.room.state.activeGameId if present
@@ -944,6 +940,30 @@ function RoomPage() {
       console.error('UPDATE ROOM STATUS ERROR:', e)
       setError(e instanceof Error ? e.message : 'Could not update room status')
     }
+  }
+
+  async function handleEndRoom() {
+    if (!snapshot || !isHost || endRoomBusy) return
+    if (!window.confirm(`End “${snapshot.room.roomName ?? game?.name ?? 'this room'}”? Everyone will leave the live room.`)) return
+    setEndRoomBusy(true)
+    try { sound.playTap(); await endRoom(snapshot); nav('/rooms') }
+    catch (e) { setError(e instanceof Error ? e.message : 'Could not end the room') }
+    finally { setEndRoomBusy(false) }
+  }
+
+  async function saveExternalLink() {
+    try { sound.playTap(); setSnapshot(await setExternalRoomUrl(snapshot!.room, externalInput)) }
+    catch (e) { setError(e instanceof Error ? e.message : 'Could not save the external game link') }
+  }
+
+  async function submitChat() {
+    if (!snapshot || !player || !chatInput.trim()) return
+    setChatError('')
+    try {
+      const msg = await sendRoomChat(snapshot.room, player, chatInput)
+      setChat(current => [...current, msg].slice(-100))
+      setChatInput('')
+    } catch (e) { setChatError(e instanceof Error ? e.message : 'Could not send chat message') }
   }
 
   async function switchGame(newGame: Game) {
@@ -1097,6 +1117,10 @@ function RoomPage() {
             </div>
           )}
 
+          {game.playMode === 'online' ? (
+            <OnlineLobbyPanel game={game} room={snapshot.room} isHost={isHost} externalInput={externalInput} setExternalInput={setExternalInput} onSaveExternalLink={() => void saveExternalLink()} chat={chat} chatInput={chatInput} setChatInput={setChatInput} onSubmitChat={() => void submitChat()} chatError={chatError} />
+          ) : null}
+
           {/* Floating Emoji Reactions Bar */}
           <ReactionOverlay />
         </main>
@@ -1123,12 +1147,9 @@ function RoomPage() {
               ))}
             </div>
 
-            {isHost && snapshot.room.status !== 'lobby' ? (
-              <button
-                className="button ghost full"
-                onClick={() => { void setStatus('finished') }}
-              >
-                Finish game
+            {isHost ? (
+              <button className="button danger full end-room-button" disabled={endRoomBusy} onClick={() => void handleEndRoom()}>
+                <CircleX size={15} /> {endRoomBusy ? 'Ending room…' : 'End Room'}
               </button>
             ) : null}
           </div>
@@ -1297,7 +1318,9 @@ function GamePanel({
         <span className="mode-pill">{game.scoreMode}</span>
       </div>
 
-      {behavior === 'sketch' ? (
+      {game.playMode === 'online' ? (
+        <div className="online-game-placeholder"><Wifi size={34} /><div><span className="eyebrow">ONLINE SESSION</span><h3>Open the live game below</h3><p>{game.shortDescription}</p></div></div>
+      ) : behavior === 'sketch' ? (
         <>
           <div className="prompt-tools">
             <div>
@@ -1456,12 +1479,87 @@ function GamePanel({
 
       {isHost ? (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '15px', marginTop: '18px', paddingTop: '15px', borderTop: '1px solid var(--border)', fontSize: '12px', color: 'var(--muted)' }}>
-          <button className="button ghost compact" onClick={onFinish}>Finish game</button>
+          <button className="button danger compact" onClick={onFinish}>End Room</button>
           <span>Host controls are only visible to the room creator.</span>
         </div>
       ) : null}
     </div>
   )
+}
+
+
+function LiveRoomsPage() {
+  const nav = useNavigate()
+  const [rooms, setRooms] = useState<ActiveRoomSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [player, setCurrentPlayer] = useState<Player | null>(getPlayer())
+
+  useEffect(() => {
+    let active = true
+    let off = () => {}
+    const refresh = async () => {
+      try {
+        const next = await listActiveRooms()
+        if (active) { setRooms(next); setError('') }
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : 'Could not load live rooms')
+      } finally { if (active) setLoading(false) }
+    }
+    void refresh()
+    off = subscribeToActiveRooms(() => void refresh())
+    const poll = window.setInterval(() => void refresh(), 15000)
+    return () => { active = false; off(); window.clearInterval(poll) }
+  }, [])
+
+  async function joinLiveRoom(room: ActiveRoomSummary) {
+    const current = player ?? makePlayer(`Player-${Math.floor(Math.random() * 900 + 100)}`)
+    savePlayer(current); setCurrentPlayer(current)
+    try { await joinRoom(room.code, current); sound.playJoin(); nav(`/room/${room.code}`) }
+    catch (e) { setError(e instanceof Error ? e.message : 'Could not join this room') }
+  }
+
+  const online = rooms.filter(r => r.roomType === 'online')
+  const physical = rooms.filter(r => r.roomType === 'physical')
+  return (
+    <div className="plain-page live-rooms-page">
+      <header className="page-header live-rooms-header">
+        <div><div className="eyebrow"><Wifi size={14} /> ACTIVE NOW</div><h1>Live Rooms</h1><p>Only active rooms appear here, split between online and physical play.</p></div>
+        <div className="live-room-header-actions"><Link className="button primary" to="/?join=1"><DoorOpen size={15} /> Join by code</Link><Link className="button ghost" to="/"><ArrowLeft size={15} /> Games</Link></div>
+      </header>
+      {error ? <div className="error"><CircleHelp size={15} /> {error}</div> : null}
+      {loading ? <PageState title="Finding active rooms…" subtle="Checking the live room directory." /> : null}
+      {!loading ? <div className="live-room-categories"><LiveRoomCategory title="Online" icon={<Wifi size={18} />} rooms={online} onJoin={joinLiveRoom} empty="No active online rooms right now." /><LiveRoomCategory title="Physical" icon={<Users size={18} />} rooms={physical} onJoin={joinLiveRoom} empty="No active physical rooms right now." /></div> : null}
+    </div>
+  )
+}
+
+function LiveRoomCategory({ title, icon, rooms, onJoin, empty }: { title: string; icon: ReactNode; rooms: ActiveRoomSummary[]; onJoin: (room: ActiveRoomSummary) => void; empty: string }) {
+  return (
+    <section className="live-room-category">
+      <div className="live-room-category-head"><div><span className="eyebrow">ACTIVE ROOMS</span><h2>{icon} {title}</h2></div><span className="count">{rooms.length}</span></div>
+      {rooms.length ? <div className="live-room-list">{rooms.map(room => <button key={room.id} type="button" className="live-room-row" onClick={() => onJoin(room)}><div className="live-room-icon">{room.roomType === 'online' ? '🌐' : '🎲'}</div><div className="live-room-main"><strong>{room.roomName}</strong><span>{room.gameName} · {room.playerCount} player{room.playerCount === 1 ? '' : 's'}</span></div><div className="live-room-meta"><span className={`status-dot ${room.status === 'playing' ? 'playing' : 'waiting'}`} /><small>{room.status === 'playing' ? 'Playing' : 'Waiting'}</small><b>{room.code}</b></div><ArrowRight size={18} /></button>)}</div> : <div className="live-room-empty"><Wifi size={25} /><p>{empty}</p></div>}
+    </section>
+  )
+}
+
+function OnlineLobbyPanel({ game, room, isHost, externalInput, setExternalInput, onSaveExternalLink, chat, chatInput, setChatInput, onSubmitChat, chatError }: { game: Game; room: RoomSnapshot['room']; isHost: boolean; externalInput: string; setExternalInput: (value: string) => void; onSaveExternalLink: () => void; chat: ChatMessage[]; chatInput: string; setChatInput: (value: string) => void; onSubmitChat: () => void; chatError: string }) {
+  const launch = room.externalRoomUrl || game.externalLaunchUrl
+  return (
+    <section className="online-lobby-grid">
+      <div className="online-launch-card">
+        <div className="eyebrow"><Wifi size={14} /> ONLINE GAME</div><h2>{game.name}</h2><p>Game Night is your meetup lobby. The actual game runs on {game.externalProvider ?? 'the game provider'}.</p>
+        <div className="online-steps"><div><b>01</b><span>Host creates the external game room.</span></div><div><b>02</b><span>Paste the invite link here.</span></div><div><b>03</b><span>Everyone launches the same live game.</span></div></div>
+        {isHost ? <div className="external-link-editor"><label>External room link<input value={externalInput} onChange={e => setExternalInput(e.target.value)} placeholder={game.externalLaunchUrl ?? 'https://…'} /></label><button type="button" className="button secondary" onClick={onSaveExternalLink}><Check size={15} /> Save link</button></div> : null}
+        <div className="online-launch-actions">{launch ? <a className="button primary big" href={launch} target="_blank" rel="noreferrer"><ExternalLink size={16} /> {room.externalRoomUrl ? `Enter ${game.name}` : `Open ${game.externalProvider ?? 'game site'}`}</a> : null}{game.externalLaunchUrl ? <a className="button ghost" href={game.externalLaunchUrl} target="_blank" rel="noreferrer">Create your own room</a> : null}{room.externalRoomUrl && room.externalRoomUrl !== game.externalLaunchUrl ? <button type="button" className="button ghost" onClick={() => void navigator.clipboard?.writeText(room.externalRoomUrl ?? '')}><Copy size={15} /> Copy game link</button> : null}</div>
+      </div>
+      <RoomChat messages={chat} value={chatInput} setValue={setChatInput} onSubmit={onSubmitChat} error={chatError} />
+    </section>
+  )
+}
+
+function RoomChat({ messages, value, setValue, onSubmit, error }: { messages: ChatMessage[]; value: string; setValue: (value: string) => void; onSubmit: () => void; error: string }) {
+  return <section className="room-chat-card"><div className="side-head"><div><span className="eyebrow">ROOM CHAT</span><h2><MessageSquareText size={17} /> Coordinate</h2></div><MessageCircle size={18} /></div><div className="room-chat-messages" aria-live="polite">{messages.length ? messages.map(m => <div key={m.id} className="room-chat-message"><b>{m.senderName}</b><span>{m.message}</span></div>) : <div className="room-chat-empty">No messages yet. Say hi 👋</div>}</div><form className="room-chat-form" onSubmit={e => { e.preventDefault(); onSubmit() }}><input maxLength={500} value={value} onChange={e => setValue(e.target.value)} placeholder="Type a message…" aria-label="Room chat message" /><button type="submit" className="button primary compact" aria-label="Send chat message"><Send size={15} /></button></form>{error ? <small className="room-chat-error">{error}</small> : null}</section>
 }
 
 function WinnerPicker({
@@ -1764,7 +1862,7 @@ function AdminPage() {
   const [uploading, setUploading] = useState(false)
   const [checking, setChecking] = useState(isSupabaseConfigured)
   const [sessionEmail, setSessionEmail] = useState('')
-  const [isAdmin, setIsAdmin] = useState(!isSupabaseConfigured)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
@@ -1784,7 +1882,9 @@ function AdminPage() {
     instructions: ['Explain step one.', 'Explain step two.', 'Explain how someone wins.'],
     scoreMode: 'points',
     animationKey: 'default',
-    tags: ['party']
+    tags: ['party'],
+    playMode: 'physical'
+
   }
 
   useEffect(() => {
@@ -1935,7 +2035,29 @@ function AdminPage() {
 
   if (checking) return <PageState title="Checking Creator Studio…" subtle="Verifying permissions." />
 
-  if (isSupabaseConfigured && !sessionEmail) {
+  if (!isSupabaseConfigured) {
+    return (
+      <div className="admin-page">
+        <header className="admin-header">
+          <div>
+            <div className="eyebrow">CREATOR STUDIO</div>
+            <h1>Admin access is unavailable.</h1>
+            <p>Creator Studio is locked until Supabase authentication is configured. No admin access is granted in demo mode.</p>
+          </div>
+          <button className="button ghost" onClick={() => nav('/')}><ArrowLeft size={15} /> Back to app</button>
+        </header>
+        <section className="admin-card auth-card" style={{ maxWidth: '560px', margin: '0 auto' }}>
+          <div className="admin-card-head">
+            <div><span className="eyebrow">SECURE ACCESS</span><h2>Configuration required</h2></div>
+            <Settings2 size={20} />
+          </div>
+          <p className="muted">Set <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code>, then reload the app. Admin status is checked through the Supabase <code>is_admin()</code> RPC.</p>
+        </section>
+      </div>
+    )
+  }
+
+  if (!sessionEmail) {
     return (
       <div className="admin-page">
         <header className="admin-header">
@@ -1951,10 +2073,36 @@ function AdminPage() {
             <div><span className="eyebrow">SECURE ACCESS</span><h2>Sign In</h2></div>
             <Settings2 size={20} />
           </div>
-          <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@example.com" /></label>
-          <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" /></label>
+          <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="admin@example.com" autoComplete="email" /></label>
+          <label>Password<input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" autoComplete="current-password" /></label>
           {authError ? <div className="error"><CircleHelp size={15} />{authError}</div> : null}
           <button className="button primary full gnc-game-press" onClick={() => void login()}><LogIn size={16} /> Sign In</button>
+        </section>
+      </div>
+    )
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="admin-page">
+        <header className="admin-header">
+          <div>
+            <div className="eyebrow">CREATOR STUDIO</div>
+            <h1>Admin access required.</h1>
+            <p>The signed-in account does not have the admin role.</p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="button ghost" onClick={() => void logout()}><LogIn size={15} /> Sign out</button>
+            <button className="button ghost" onClick={() => nav('/')}><ArrowLeft size={15} /> Back to app</button>
+          </div>
+        </header>
+        <section className="admin-card auth-card" style={{ maxWidth: '560px', margin: '0 auto' }}>
+          <div className="admin-card-head">
+            <div><span className="eyebrow">ACCESS DENIED</span><h2>Not an admin account</h2></div>
+            <AlertTriangle size={20} />
+          </div>
+          <p className="muted">Your session is valid, but Supabase did not grant this user admin access. Nothing in Creator Studio is rendered until <code>is_admin()</code> returns true.</p>
+          {authError ? <div className="error"><CircleHelp size={15} />{authError}</div> : null}
         </section>
       </div>
     )
@@ -2086,12 +2234,16 @@ function AdminPage() {
                 <div className="form-grid">
                   <label>Game name<input value={editing.name} onChange={e => setEditing({ ...editing, name: e.target.value })} /></label>
                   <label>Behavior<select value={editing.behavior ?? (editing.slug as GameKind)} onChange={e => setEditing({ ...editing, behavior: e.target.value as GameKind })}>{['uno', 'forbidden-number', 'opposite-action', 'race-3', 'sketch', 'find-number', 'guess-leader', 'guess-number', 'ten-seconds', 'memory-drawing', 'race-5', 'wrong-answers', 'contact', 'hsk-cup', 'garbage', 'pressure'].map(x => <option key={x}>{x}</option>)}</select></label>
+                  <label>Play mode<select value={editing.playMode ?? 'physical'} onChange={e => setEditing({ ...editing, playMode: e.target.value as 'physical' | 'online' })}><option value="physical">Physical</option><option value="online">Online</option></select></label>
+                  <label className="checkbox-field"><input type="checkbox" checked={editing.isSoloFriendly === true} onChange={e => setEditing({ ...editing, isSoloFriendly: e.target.checked })} /> Solo Ready</label>
+                  <label>External provider<input value={editing.externalProvider ?? ''} onChange={e => setEditing({ ...editing, externalProvider: e.target.value })} placeholder="e.g. Skribbl.io" /></label>
                   <label>URL slug<input value={editing.slug} readOnly /></label>
                   <label className="full-field">Short description<input value={editing.shortDescription} onChange={e => setEditing({ ...editing, shortDescription: e.target.value })} /></label>
                   <label className="full-field">Description<textarea rows={3} value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })} /></label>
                   <label>Score mode<select value={editing.scoreMode} onChange={e => setEditing({ ...editing, scoreMode: e.target.value as any })}><option>points</option><option>race</option><option>manual</option><option>uno</option></select></label>
                   <label>Target score<input type="number" value={editing.targetScore ?? ''} onChange={e => setEditing({ ...editing, targetScore: e.target.value ? Number(e.target.value) : undefined })} /></label>
                   <label className="full-field">Example video URL<input value={editing.exampleUrl ?? ''} onChange={e => setEditing({ ...editing, exampleUrl: e.target.value })} /></label>
+                  <label className="full-field">External launch URL<input value={editing.externalLaunchUrl ?? ''} onChange={e => setEditing({ ...editing, externalLaunchUrl: e.target.value })} placeholder="https://…" /></label>
                   <label className="full-field">Instructions<textarea rows={5} value={editing.instructions.join('\n')} onChange={e => setEditing({ ...editing, instructions: e.target.value.split('\n').filter(Boolean) })} /></label>
                   <label className="full-field">Tags<input value={editing.tags.join(', ')} onChange={e => setEditing({ ...editing, tags: e.target.value.split(',').map(x => x.trim()).filter(Boolean) })} /></label>
                 </div>
@@ -2227,7 +2379,10 @@ export default function App() {
       <AppShell>
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/games" element={<GamesPage />} />
+          <Route path="/how-it-works" element={<HowItWorksPage />} />
           <Route path="/room/:code" element={<RoomPage />} />
+          <Route path="/rooms" element={<LiveRoomsPage />} />
           <Route path="/suggest" element={<SuggestGamePage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/admin" element={<AdminPage />} />
