@@ -1,4 +1,4 @@
--- Game Night PWA — Supabase bootstrap
+-- Gam3n1ght PWA — Supabase bootstrap
 -- Run this entire file in Supabase SQL Editor.
 -- It upgrades the earlier MVP schema and is safe to re-run.
 

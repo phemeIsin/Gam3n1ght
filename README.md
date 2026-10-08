@@ -1,4 +1,4 @@
-# Game Night PWA — production-ready MVP
+# Gam3n1ght PWA — production-ready MVP
 
 A mobile-first, shareable party-game platform. The physical game stays physical; Game Night handles rooms, rules, prompts, timers and scores.
 
@@ -147,7 +147,7 @@ For a larger public launch, add application monitoring, abuse reporting, stronge
 Normal users now have:
 - `/suggest` — structured game suggestion form matching the Creator Studio fields, including game behavior, scoring, player count, tags, instructions and an example link.
 - `/contact` — complaints, bug reports, partnership requests and general suggestions that are not game submissions.
-- A Game Night × DisCoVar WhatsApp promotion linking to the supplied community invite.
+- A Gam3n1ght × DisCoVar WhatsApp promotion linking to the supplied community invite.
 
 Creator Studio now has tabs for Overview, Games, Suggestions and Messages. The Overview shows game count, room activity, player activity, pending suggestions and open support messages. Suggestions can be approved or declined; approved games receive a unique slug and keep the selected game behavior so they do not overwrite an existing built-in game.
 

@@ -9,8 +9,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg'],
       manifest: {
-        name: 'Game Night',
-        short_name: 'Game Night',
+        name: 'Gam3n1ght',
+        short_name: 'Gam3n1ght',
         description: 'A shareable party game room app',
         theme_color: '#161616',
         background_color: '#f7f5f0',

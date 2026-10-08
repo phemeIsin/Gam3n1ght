@@ -41,6 +41,7 @@ export type Game = {
   supportsTeams?: boolean
   animationKey: string
   tags: string[]
+  isSoloFriendly?: boolean
 }
 
 export type Player = {
@@ -48,9 +49,17 @@ export type Player = {
   name: string
   joinedAt: string
   score: number
+  avatar?: string
 }
 
 export type RoomStatus = 'lobby' | 'playing' | 'finished'
+
+export type RoomReaction = {
+  id: string
+  emoji: string
+  sender: string
+  timestamp: number
+}
 
 export type RoomState = {
   round: number
@@ -61,6 +70,9 @@ export type RoomState = {
   targetScore?: number
   gameMode?: string
   hostNote?: string
+  activeGameId?: string
+  soloMode?: boolean
+  reactions?: RoomReaction[]
 }
 
 export type Room = {

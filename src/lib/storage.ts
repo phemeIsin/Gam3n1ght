@@ -9,8 +9,11 @@ export function getPlayer(): Player | null {
 
 export function savePlayer(player: Player) { localStorage.setItem(PLAYER_KEY, JSON.stringify(player)) }
 
-export function makePlayer(name: string): Player {
-  return { id: crypto.randomUUID(), name: name.trim(), joinedAt: new Date().toISOString(), score: 0 }
+export const DEFAULT_AVATARS = ['🦊', '🦁', '🐼', '🐯', '🚀', '⚡', '🎮', '👾', '🎨', '🎲', '🍕', '👑']
+
+export function makePlayer(name: string, avatar?: string): Player {
+  const chosenAvatar = avatar || DEFAULT_AVATARS[Math.floor(Math.random() * DEFAULT_AVATARS.length)]
+  return { id: crypto.randomUUID(), name: name.trim(), joinedAt: new Date().toISOString(), score: 0, avatar: chosenAvatar }
 }
 
 export function loadCustomGames(): Game[] {
