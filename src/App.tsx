@@ -377,8 +377,8 @@ function Home() {
           </div>
 
           <h1 className="hero-title">
-            Play Party Games Online with Friends
-            <span className="hero-badge-rotated">Instantly</span>
+            Make the Meet fun. Scroll Less,
+          <span className="hero-badge-rotated">PLAY MORE</span>
           </h1>
 
           <div className="hero-features-bar">
@@ -387,6 +387,8 @@ function Home() {
             <span>No Downloads</span>
             <span className="dot" />
             <span>No Signup Required</span>
+            <span className="dot" />
+            <span>make the meet fun</span>
           </div>
 
           {/* Interactive Player Setup & Action Box */}
