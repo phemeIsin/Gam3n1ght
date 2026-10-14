@@ -471,6 +471,14 @@ html.light .topbar {
 }
 
 /* Tilted Marquee Perspective */
+.hero-backdrop-container,
+.hero-backdrop-container * {
+  pointer-events: none !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  touch-action: none !important;
+}
+
 .hero-collage-perspective {
   position: absolute;
   inset: -20% -12%;
@@ -480,7 +488,7 @@ html.light .topbar {
   mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%);
   opacity: 0.55;
-  pointer-events: auto;
+  pointer-events: none;
 }
 
 .hero-collage-angled {
@@ -489,6 +497,7 @@ html.light .topbar {
   flex-direction: column;
   gap: 16px;
   width: 120%;
+  pointer-events: none;
 }
 
 .marquee-wrapper {
@@ -497,6 +506,7 @@ html.light .topbar {
   overflow: hidden;
   mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
   -webkit-mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+  pointer-events: none;
 }
 
 .marquee-content {
@@ -504,6 +514,7 @@ html.light .topbar {
   gap: 14px;
   width: max-content;
   will-change: transform;
+  pointer-events: none;
 }
 
 .animate-marquee-x {
@@ -512,10 +523,6 @@ html.light .topbar {
 
 .animate-marquee-x-reverse {
   animation: marquee-x 160s linear infinite reverse;
-}
-
-.hero-collage-perspective:hover .marquee-content {
-  animation-play-state: paused;
 }
 
 .hero-backdrop-container.reduced-effects .marquee-content,
@@ -534,12 +541,7 @@ html.light .topbar {
   overflow: hidden;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
   flex-shrink: 0;
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-.hero-mini-card:hover {
-  transform: scale(1.05);
-  border-color: var(--primary);
+  pointer-events: none;
 }
 
 .mini-card-art {
@@ -1344,6 +1346,114 @@ html.light .hero-play-box {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+/* WhatsApp Dedicated Community Button */
+.button-whatsapp {
+  background: #25d366 !important;
+  color: #020617 !important;
+  font-weight: 900 !important;
+  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.4), 0 3px 0 #128c7e !important;
+  border: 1px solid #1ebe5d !important;
+}
+
+.button-whatsapp:hover {
+  background: #20ba5a !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(37, 211, 102, 0.5), 0 4px 0 #128c7e !important;
+}
+
+/* Global Site Footer */
+.global-site-footer {
+  border-top: 1px solid var(--border);
+  background: var(--surface-1);
+  padding: 36px 24px calc(36px + env(safe-area-inset-bottom, 0px));
+  margin-top: 48px;
+  position: relative;
+  z-index: 10;
+}
+
+@media (max-width: 768px) {
+  .global-site-footer {
+    padding-bottom: calc(var(--mobile-nav-height, 65px) + 24px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.footer-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.footer-brand-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-logo {
+  font-size: 18px;
+  font-weight: 950;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+}
+
+.footer-collab {
+  font-size: 13px;
+  font-weight: 850;
+  color: #22d3ee;
+  background: rgba(34, 211, 238, 0.12);
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+}
+
+.footer-tagline {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.footer-links a {
+  font-size: 13px;
+  font-weight: 750;
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.footer-links a:hover {
+  color: var(--ink);
+}
+
+.footer-wa-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #25d366 !important;
+  font-weight: 850 !important;
+}
+
+.footer-wa-link:hover {
+  color: #1ebe5d !important;
+  text-decoration: underline;
 }
 
 /* =========================================================

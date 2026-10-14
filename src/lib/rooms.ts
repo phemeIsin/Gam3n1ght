@@ -229,11 +229,15 @@ export async function changeScore(
   }
 }
 
-export function subscribeToRoom(room: Room, onChange: () => void) {
+export function subscribeToRoom(
+  room: Room,
+  onChange: () => void,
+  onEnded?: () => void
+) {
   const client = supabase
   if (!client) return () => undefined
 
-  const channelName = `room:${room.id}:${crypto.randomUUID()}`
+  const channelName = `room:${room.id}`
 
   try {
     const channel = client
@@ -246,7 +250,12 @@ export function subscribeToRoom(room: Room, onChange: () => void) {
           table: 'rooms',
           filter: `id=eq.${room.id}`
         },
-        onChange
+        payload => {
+          if (payload?.new && (payload.new as any).status === 'finished') {
+            onEnded?.()
+          }
+          onChange()
+        }
       )
       .on(
         'postgres_changes',
@@ -257,6 +266,14 @@ export function subscribeToRoom(room: Room, onChange: () => void) {
           filter: `room_id=eq.${room.id}`
         },
         onChange
+      )
+      .on(
+        'broadcast',
+        { event: 'room_ended' },
+        () => {
+          onEnded?.()
+          onChange()
+        }
       )
 
     void channel.subscribe(status => {
@@ -308,30 +325,63 @@ export async function listActiveRooms(): Promise<ActiveRoomSummary[]> {
     return rooms.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   }
 
-  const { data, error } = await supabase
-    .from('rooms')
-    .select('id,code,game_id,status,created_at,expires_at,room_type,room_name,external_room_url,games(name,slug),room_players(player_id)')
-    .gt('expires_at', new Date().toISOString())
-    .in('status', ['lobby', 'playing'])
-    .order('created_at', { ascending: false })
-    .limit(100)
+  try {
+    const { data, error } = await supabase
+      .from('rooms')
+      .select('id,code,game_id,status,created_at,expires_at,room_type,room_name,external_room_url,games(name,slug),room_players(player_id)')
+      .gt('expires_at', new Date().toISOString())
+      .in('status', ['lobby', 'playing'])
+      .order('created_at', { ascending: false })
+      .limit(100)
 
-  if (error) throw new Error(error.message)
+    if (error) throw new Error(error.message)
 
-  return (data ?? []).map((row: any) => ({
-    id: row.id,
-    code: row.code,
-    gameId: row.game_id,
-    gameName: row.games?.name ?? row.game_id,
-    gameSlug: row.games?.slug ?? row.game_id,
-    roomType: (row.room_type ?? 'physical') as 'physical' | 'online',
-    roomName: row.room_name ?? `${row.games?.name ?? row.game_id} Room`,
-    status: row.status as 'lobby' | 'playing',
-    playerCount: Array.isArray(row.room_players) ? row.room_players.length : 0,
-    createdAt: row.created_at,
-    expiresAt: row.expires_at,
-    externalRoomUrl: row.external_room_url ?? undefined
-  }))
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      code: row.code,
+      gameId: row.game_id,
+      gameName: row.games?.name ?? row.game_id,
+      gameSlug: row.games?.slug ?? row.game_id,
+      roomType: (row.room_type ?? 'physical') as 'physical' | 'online',
+      roomName: row.room_name ?? `${row.games?.name ?? row.game_id} Room`,
+      status: row.status as 'lobby' | 'playing',
+      playerCount: Array.isArray(row.room_players) ? row.room_players.length : 0,
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
+      externalRoomUrl: row.external_room_url ?? undefined
+    }))
+  } catch (err) {
+    console.warn('Could not load active rooms from Supabase, checking local rooms:', err)
+    const rooms: ActiveRoomSummary[] = []
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i)
+      if (!key?.startsWith('game-night-room-')) continue
+      try {
+        const snap = JSON.parse(localStorage.getItem(key) ?? 'null') as RoomSnapshot | null
+        if (!snap || snap.room.status === 'finished') continue
+        const createdAt = new Date(snap.room.createdAt)
+        if (Date.now() - createdAt.getTime() > 12 * 60 * 60 * 1000) continue
+        const gameName = snap.room.roomName?.replace(/ Room$/, '') || snap.room.gameId
+        rooms.push({
+          id: snap.room.id,
+          code: snap.room.code,
+          gameId: snap.room.gameId,
+          gameName,
+          gameSlug: snap.room.gameId,
+          roomType: snap.room.roomType ?? 'physical',
+          roomName: snap.room.roomName ?? `${gameName} Room`,
+          status: snap.room.status,
+          playerCount: snap.players.length,
+          createdAt: snap.room.createdAt,
+          expiresAt: new Date(createdAt.getTime() + 12 * 60 * 60 * 1000).toISOString(),
+          externalRoomUrl: snap.room.externalRoomUrl
+        })
+      } catch {
+        // Ignore malformed local demo room entries.
+      }
+    }
+    return rooms.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  }
 }
 
 export function subscribeToActiveRooms(onChange: () => void) {
@@ -346,6 +396,18 @@ export function subscribeToActiveRooms(onChange: () => void) {
 }
 
 export async function endRoom(snapshot: RoomSnapshot): Promise<RoomSnapshot> {
+  if (supabase) {
+    try {
+      const channel = supabase.channel(`room:${snapshot.room.id}`)
+      await channel.send({
+        type: 'broadcast',
+        event: 'room_ended',
+        payload: { roomId: snapshot.room.id, code: snapshot.room.code }
+      })
+    } catch {
+      // Continue ending room via RPC
+    }
+  }
   return updateRoomState(snapshot, {}, 'finished')
 }
 

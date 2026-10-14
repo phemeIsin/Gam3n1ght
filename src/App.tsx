@@ -229,6 +229,29 @@ function AppShell({ children }: { children: ReactNode }) {
 
       {children}
 
+      {/* Global Site Footer */}
+      <footer className="global-site-footer">
+        <div className="footer-inner">
+          <div className="footer-brand">
+            <div className="footer-brand-title">
+              <span className="footer-logo">Gam3n1ght</span>
+              <span className="footer-collab">✕ DiSCoVaR</span>
+            </div>
+            <p className="footer-tagline">Make the Meet fun · Party games for the room · Free forever</p>
+          </div>
+          <div className="footer-links">
+            <a href="https://chat.whatsapp.com/Hat53llBovo4gzimIvJPwN" target="_blank" rel="noreferrer" className="footer-wa-link">
+              <MessageCircle size={15} /> WhatsApp Community
+            </a>
+            <Link to="/games">Games</Link>
+            <Link to="/rooms">Live Rooms</Link>
+            <Link to="/how-it-works">How It Works</Link>
+            <Link to="/suggest">Suggest Game</Link>
+            <Link to="/contact">Contact</Link>
+          </div>
+        </div>
+      </footer>
+
       {/* PWA Mobile Bottom Navigation */}
       <nav className="mobile-bottom-nav" aria-label="Mobile Navigation">
         <Link to="/" className="mobile-nav-item active" onClick={() => sound.playTap()}>
@@ -488,12 +511,12 @@ Join our WhatsApp community for Game Night updates, new games, event announcemen
           </p>
           <div className="community-promo-actions">
             <a
-              className="button primary gnc-game-press"
+              className="button button-whatsapp gnc-game-press"
               href="https://chat.whatsapp.com/Hat53llBovo4gzimIvJPwN"
               target="_blank"
               rel="noreferrer"
             >
-              <MessageCircle size={16} /> Join the WA-Community
+              <MessageCircle size={18} /> Join the WA-Community
             </a>
             <Link className="button ghost" to="/suggest" onClick={() => sound.playTap()}>
               <Lightbulb size={16} /> Suggest a Game
@@ -794,35 +817,75 @@ function RoomPage() {
   useEffect(() => {
     let off = () => {}
     let offChat = () => {}
+    let pollId: number | undefined
 
     ;(async () => {
       try {
-        const s = await getRoom(code)
+        let currentP = getPlayer()
+        if (!currentP) {
+          currentP = makePlayer(`Player-${Math.floor(Math.random() * 900 + 100)}`)
+          savePlayer(currentP)
+        }
+
+        let s = await getRoom(code)
+
+        // Automatically join room if not already a member and room is active
+        if (s.room.status !== 'finished' && !s.players.some(p => p.id === currentP.id)) {
+          try {
+            s = await joinRoom(code, currentP)
+          } catch (joinErr) {
+            console.warn('Auto-join room failed:', joinErr)
+          }
+        }
+
         setSnapshot(s)
         setExternalInput(s.room.externalRoomUrl ?? '')
         setLoading(false)
         if (s.room.roomType === 'online') { try { setChat(await listRoomChat(s.room)) } catch (chatLoadError) { console.warn('ROOM CHAT LOAD ERROR:', chatLoadError) } }
 
         try {
-          off = subscribeToRoom(s.room, async () => {
-            try {
-              const refreshed = await getRoom(code)
-              // If new player joined, play sound
-              if (refreshed.players.length > (snapshot?.players.length ?? 0)) {
-                sound.playJoin()
+          off = subscribeToRoom(
+            s.room,
+            async () => {
+              try {
+                const refreshed = await getRoom(code)
+                // If new player joined, play sound
+                if (refreshed.players.length > (snapshot?.players.length ?? 0)) {
+                  sound.playJoin()
+                }
+                setSnapshot(refreshed)
+                if (refreshed.room.roomType === 'online') {
+                  setExternalInput(refreshed.room.externalRoomUrl ?? '')
+                  try { setChat(await listRoomChat(refreshed.room)) } catch { /* keep chat */ }
+                }
+              } catch (e) {
+                console.error('REALTIME GET ROOM ERROR:', e)
+                if (e instanceof Error && (e.message.includes('ended') || e.message.includes('not found') || e.message.includes('expired'))) {
+                  setError('This room has been ended by the host.')
+                }
               }
-              setSnapshot(refreshed)
-              if (refreshed.room.roomType === 'online') {
-                setExternalInput(refreshed.room.externalRoomUrl ?? '')
-                try { setChat(await listRoomChat(refreshed.room)) } catch { /* keep chat */ }
-              }
-            } catch (e) {
-              console.error('REALTIME GET ROOM ERROR:', e)
+            },
+            () => {
+              setError('This room has been ended by the host.')
             }
-          })
+          )
         } catch (e) {
           console.error('REALTIME SUBSCRIBE ERROR:', e)
         }
+
+        pollId = window.setInterval(async () => {
+          try {
+            const refreshed = await getRoom(code)
+            if (refreshed.room.status === 'finished') {
+              setError('This room has been ended by the host.')
+            }
+          } catch (e) {
+            if (e instanceof Error && (e.message.includes('ended') || e.message.includes('not found') || e.message.includes('expired'))) {
+              setError('This room has been ended by the host.')
+            }
+          }
+        }, 4000)
+
         if (s.room.roomType === 'online') {
           offChat = subscribeToRoomChat(s.room, async () => {
             try { setChat(await listRoomChat(s.room)) } catch { /* keep chat */ }
@@ -835,7 +898,7 @@ function RoomPage() {
       }
     })()
 
-    return () => { off(); offChat() }
+    return () => { off(); offChat(); window.clearInterval(pollId) }
   }, [code])
 
   // Support game switching: use snapshot.room.state.activeGameId if present
@@ -879,8 +942,15 @@ function RoomPage() {
     return <PageState title="Connecting to table…" subtle="Preparing your game room." />
   }
 
-  if (error || !snapshot || !game) {
-    return <PageState title="Room not found" subtle={error} back />
+  if (error || !snapshot || !game || snapshot.room.status === 'finished') {
+    const isEnded = error.toLowerCase().includes('ended') || snapshot?.room.status === 'finished'
+    return (
+      <PageState
+        title={isEnded ? "Room has ended" : "Room not found"}
+        subtle={isEnded ? "The host has ended this game room session. Thanks for playing!" : error}
+        back
+      />
+    )
   }
 
   const isHost = player?.id === snapshot.room.hostId

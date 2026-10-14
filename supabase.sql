@@ -353,7 +353,7 @@ create policy "room chat member insert" on public.room_chat
 
 drop policy if exists "rooms public read active" on public.rooms;
 create policy "rooms public read active" on public.rooms
-  for select using (expires_at > now() and status in ('lobby','playing'));
+  for select using (expires_at > now() and status in ('lobby','playing','finished'));
 
 drop policy if exists "players public read active" on public.room_players;
 create policy "players public read active" on public.room_players
@@ -378,6 +378,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 declare
   uid uuid := auth.uid();
   new_code text;
@@ -390,14 +391,14 @@ begin
     raise exception 'Name must be between 1 and 30 characters.' using errcode = '22023';
   end if;
 
-  select * into selected_game from public.games where id = p_game_id;
+  select * into selected_game from public.games where games.id = p_game_id;
   if not found then raise exception 'The selected game does not exist.' using errcode = '22023'; end if;
 
   perform public.cleanup_expired_rooms();
 
   select count(*) into active_recent
   from public.rooms
-  where created_by = uid and created_at > now() - interval '10 minutes';
+  where rooms.created_by = uid and rooms.created_at > now() - interval '10 minutes';
   if active_recent >= 5 then
     raise exception 'Room creation rate limit reached. Try again in a few minutes.' using errcode = '42900';
   end if;
@@ -429,6 +430,7 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+#variable_conflict use_column
 declare
   uid uuid := auth.uid();
   room_row public.rooms%rowtype;
@@ -441,14 +443,14 @@ begin
 
   select * into room_row
   from public.rooms
-  where code = upper(trim(p_code))
-    and expires_at > now()
-    and status in ('lobby','playing')
+  where rooms.code = upper(trim(p_code))
+    and rooms.expires_at > now()
+    and rooms.status in ('lobby','playing')
   for update;
   if not found then raise exception 'Room not found, finished, or expired.' using errcode = 'P0002'; end if;
 
-  select count(*) into player_count from public.room_players where room_id = room_row.id;
-  if player_count >= 30 and not exists(select 1 from public.room_players where room_id = room_row.id and player_id = uid::text) then
+  select count(*) into player_count from public.room_players where room_players.room_id = room_row.id;
+  if player_count >= 30 and not exists(select 1 from public.room_players where room_players.room_id = room_row.id and room_players.player_id = uid::text) then
     raise exception 'This room is full.' using errcode = 'P0001';
   end if;
 

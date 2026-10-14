@@ -5,27 +5,37 @@ import { loadCustomGames, mergeGames, saveCustomGames } from './storage'
 
 export async function loadGames(): Promise<Game[]> {
   if (!supabase) return mergeGames(defaultGames, loadCustomGames())
-  const { data, error } = await supabase.from('games').select('*').order('sort_order')
-  if (error || !data?.length) return mergeGames(defaultGames, loadCustomGames())
-  const defaultById = new Map(defaultGames.map(g => [g.id, g]))
-  const dbGames = data.map((r:any) => {
-    const fallback = defaultById.get(r.id)
-    return {
-      id:r.id, slug:r.slug, behavior:r.game_kind ?? r.slug, name:r.name, shortDescription:r.short_description, description:r.description,
-      instructions:r.instructions ?? [], exampleUrl:r.example_url ?? undefined, scoreMode:r.score_mode ?? 'points',
-      targetScore:r.target_score ?? undefined, minPlayers:r.min_players ?? 2, supportsTeams:r.supports_teams ?? false,
-      animationKey:r.animation_key ?? 'default', tags:r.tags ?? [], isSoloFriendly:r.is_solo_friendly ?? fallback?.isSoloFriendly ?? false,
-      playMode:r.play_mode ?? 'physical', externalProvider:r.external_provider ?? undefined, externalLaunchUrl:r.external_launch_url ?? undefined, externalGameUrl:r.external_game_url ?? undefined
-    }
-  })
-  return mergeGames(defaultGames, dbGames)
+  try {
+    const { data, error } = await supabase.from('games').select('*').order('sort_order')
+    if (error || !data?.length) return mergeGames(defaultGames, loadCustomGames())
+    const defaultById = new Map(defaultGames.map(g => [g.id, g]))
+    const dbGames = data.map((r:any) => {
+      const fallback = defaultById.get(r.id)
+      return {
+        id:r.id, slug:r.slug, behavior:r.game_kind ?? r.slug, name:r.name, shortDescription:r.short_description, description:r.description,
+        instructions:r.instructions ?? [], exampleUrl:r.example_url ?? undefined, scoreMode:r.score_mode ?? 'points',
+        targetScore:r.target_score ?? undefined, minPlayers:r.min_players ?? 2, supportsTeams:r.supports_teams ?? false,
+        animationKey:r.animation_key ?? 'default', tags:r.tags ?? [], isSoloFriendly:r.is_solo_friendly ?? fallback?.isSoloFriendly ?? false,
+        playMode:r.play_mode ?? 'physical', externalProvider:r.external_provider ?? undefined, externalLaunchUrl:r.external_launch_url ?? undefined, externalGameUrl:r.external_game_url ?? undefined
+      }
+    })
+    return mergeGames(defaultGames, dbGames)
+  } catch (err) {
+    console.warn('Could not load games from Supabase, using local defaults:', err)
+    return mergeGames(defaultGames, loadCustomGames())
+  }
 }
 
 export async function loadPrompts(gameId:string): Promise<Prompt[]> {
   if (!supabase) return defaultPrompts.filter(p=>p.gameId===gameId)
-  const { data, error } = await supabase.from('game_prompts').select('*').eq('game_id',gameId).eq('is_active',true).order('created_at')
-  if (error || !data?.length) return defaultPrompts.filter(p=>p.gameId===gameId)
-  return data.map((r:any)=>({id:r.id,gameId:r.game_id,prompt:r.prompt,category:r.category ?? undefined,difficulty:r.difficulty ?? undefined}))
+  try {
+    const { data, error } = await supabase.from('game_prompts').select('*').eq('game_id',gameId).eq('is_active',true).order('created_at')
+    if (error || !data?.length) return defaultPrompts.filter(p=>p.gameId===gameId)
+    return data.map((r:any)=>({id:r.id,gameId:r.game_id,prompt:r.prompt,category:r.category ?? undefined,difficulty:r.difficulty ?? undefined}))
+  } catch (err) {
+    console.warn(`Could not load prompts for ${gameId} from Supabase, using local defaults:`, err)
+    return defaultPrompts.filter(p=>p.gameId===gameId)
+  }
 }
 
 export async function saveGame(game:Game) {
